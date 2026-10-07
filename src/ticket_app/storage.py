@@ -1,7 +1,7 @@
 import sqlite3
 from pathlib import Path
 
-from src.ticket_app.analysis_models import Record
+from ticket_app.analysis_models import Record
 
 
 class Store:
