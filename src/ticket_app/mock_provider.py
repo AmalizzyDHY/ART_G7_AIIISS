@@ -1,4 +1,4 @@
-from src.ticket_app.models import Ticket
+from ticket_app.models import Ticket
 
 
 class MockProvider:
