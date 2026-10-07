@@ -70,7 +70,8 @@ On PowerShell: `.venv\Scripts\Activate.ps1`; on macOS/Linux: `source .venv/bin/a
 
 ## LM Studio configuration
 
-- Model: `qwen3.5-2b` (file `Qwen3.5-2B-Q4_K_M.gguf`), context 4096 tokens.
+- Model: `qwen3.5-2b` (file `Qwen3.5-2B-Q4_K_M.gguf`), context 4096 tokens. Load it before
+  use, from the UI or with `lms load qwen3.5-2b --context-length 4096`.
 - Server: `http://localhost:1234/v1`, "Serve on Local Network" enabled for containers.
 - `.env`: `LLM_PROVIDER=local`, `SCENARIO_ID=g07`, `LLM_MODEL=qwen3.5-2b`, `LLM_TIMEOUT=60`,
   `LLM_MAX_TOKENS=300`. Restart the API after editing `.env`.
@@ -147,9 +148,28 @@ Contributors: Lisa (branch `Lisa`) and Rollin (branch `Rollin`). Feature branche
 visible. Details per student and PR links are in [CONTRIBUTIONS.md](CONTRIBUTIONS.md); assistant
 use is declared in [AI_USAGE.md](AI_USAGE.md).
 
-CI failure demonstration (to be filled with links once done on Jenkins): branch `demo/ci-failure`,
-commit `test: deliberately break resource routing to demonstrate CI failure` (red build), then
-commit `fix: restore resource keywords` (green build).
+Commit messages follow `type(scope): description` (in French), one increment per commit.
+Meaningful commits on `Lisa`:
+
+| Commit | Increment |
+| --- | --- |
+| [`99a3954`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/99a3954) | Fix: `Record` imported from the installed package, `group.txt` as ASCII |
+| [`4217064`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/4217064) | UI: four fields, human review banner, clear errors, history |
+| [`1f775e0`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/1f775e0) | Fix: summary CLI imports from the installed package |
+| [`2cb5397`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/2cb5397) | Fix: `reasoning_effort: "none"` so Qwen3.5 answers within the token limit |
+| [`6e98b95`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/6e98b95) | Terraform provider lock file (Windows, Linux, macOS hashes) |
+| [`c2d4dc9`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/c2d4dc9) | Evidence: Terraform deployment in local mode connected to LM Studio |
+
+Pull requests (links to be added when opened): `Lisa` → `main`, then `demo/ci-failure` → `main`,
+both reviewed by the other student and merged with a merge commit.
+
+CI failure demonstration on branch `demo/ci-failure` (Jenkins links to be added):
+
+1. Commit `test: casser volontairement le routage resource pour démontrer l'échec de la CI`
+   removes `resource` and `repository` from the resource keywords. Locally it makes 3 scenario
+   tests fail (`Resource request 1`, `Resource request 2`, `Contractor repository access`);
+   on Jenkins the build must be red at **Test** and **Build image** must be skipped.
+2. A separate commit `fix: restaurer les mots-clés resource` restores them; the next build is green.
 
 ## Jenkins pipeline
 
@@ -166,7 +186,13 @@ agent `ai-lab`, trigger `pollSCM('H/2 * * * *')` (registered by the first manual
 6. **Smoke test (mock)**: `scripts/container_smoke.py` starts the image and calls `/api/analyze`.
 
 A failed test stops the pipeline before **Build image**, so no image exists for a red commit and
-Terraform can only deploy a tested tag. In the default lab, Jenkins and Terraform share the same
+Terraform can only deploy a tested tag.
+
+Before the first Jenkins run, the Linux stages were rehearsed from a clean clone of `Lisa`: in a
+`python:3.12-slim` container, Install and Test passed (36 tests, `reports/pytest.xml` written,
+`group.txt` read as `g07`); in `hashicorp/terraform:1.13.3`, `init -backend=false`, `fmt -check`
+and `validate` passed without changing the lock file. The repository is private, so the job needs
+a GitHub credential stored in Jenkins. In the default lab, Jenkins and Terraform share the same
 Docker daemon. If the agent is remote, transfer the image with
 `docker save copilot-g07:<build> | gzip > copilot-g07.tar.gz` then `gunzip -c copilot-g07.tar.gz | docker load`.
 
@@ -224,15 +250,18 @@ State, plans, .env and tokens stay out of Git. Commit .terraform.lock.hcl.
 
 ## Reproduction evidence
 
-| Evidence | File |
-| --- | --- |
-| Test suite green without LM Studio | `evidence/pytest-local.txt` |
-| Image checks: smoke test, non-root user, writable `/data`, no `.env` | `evidence/docker-checks.txt` |
-| Live model evaluation | `docs/model-evaluation.md` |
-| UI success / LM Studio stopped | `evidence/ui-local-success.png`, `evidence/ui-lmstudio-stopped.png` |
-| Jenkins green and red builds | `evidence/jenkins-green.png`, `evidence/image-tag.txt`, `evidence/jenkins-failed.png`, `evidence/junit-failed.png`, `evidence/docker-images-after-failure.txt` |
-| Terraform | `evidence/tf-plan.txt`, `evidence/tf-apply.txt`, `evidence/tf-output.txt`, `evidence/docker-ps.txt`, `evidence/tf-plan-nochange.txt`, `evidence/tf-destroy.txt` |
-| Clean clone by the second student | `evidence/clean-clone.txt` |
+| Evidence | File | Status |
+| --- | --- | --- |
+| Test suite green without LM Studio | `evidence/pytest-local.txt` | done |
+| Image checks: smoke test, non-root user, writable `/data`, no `.env` | `evidence/docker-checks.txt` | done |
+| Live model evaluation (3 runs) | `docs/model-evaluation.md` | done |
+| Terraform cycle, mock mode | `evidence/tf-plan.txt`, `tf-apply.txt`, `tf-output.txt`, `docker-ps.txt`, `tf-plan-nochange.txt`, `tf-destroy.txt` | done |
+| Terraform cycle, local mode with LM Studio | `evidence/tf-plan-local.txt`, `tf-apply-local.txt`, `deploy-local-checks.txt`, `tf-plan-nochange-local.txt`, `tf-destroy-local.txt` | done |
+| Deployed UI: account request validated by the local model | `evidence/ui-account-result.png` | done |
+| Deployed UI: LM Studio stopped, controlled 503, nothing saved | `evidence/ui-lmstudio-stopped.png` | done |
+| Jenkins green and red builds | `evidence/jenkins-green.png`, `image-tag.txt`, `jenkins-failed.png`, `junit-failed.png`, `docker-images-after-failure.txt` | to do |
+| Terraform with the green Jenkins tag | `evidence/tf-*.txt` refreshed with `copilot-g07:<build>` | to do |
+| Clean clone by the second student | `evidence/clean-clone.txt` | to do |
 
 The second student reproduces the project from a clean clone using only this README and records
 the run in `evidence/clean-clone.txt`.
@@ -244,6 +273,8 @@ the run in `evidence/clean-clone.txt`.
 | Every live request returns 503 after 60 s | `curl` to `/v1/chat/completions` shows empty `content` and `reasoning_tokens` equal to `max_tokens`: the model is thinking | Keep `reasoning_effort: "none"` in the payload or disable thinking in LM Studio |
 | `ModuleNotFoundError: src` inside the container | A module imported `src.ticket_app...` (IDE auto-import) | Import `ticket_app...`; the package is installed, `src/` is not on the path |
 | Jenkins image tag is garbage | `group.txt` saved as UTF-16 by PowerShell `echo` | Save it as plain ASCII `g07` |
+| First live request times out, later ones work | `lms ps` shows no loaded model, so the first request waits for the model to load | Load it before the demo: `lms load qwen3.5-2b --context-length 4096` |
+| Thinking disabled in the LM Studio chat, but API answers are still empty | That toggle applies to chat sessions; the API server uses the model default (thinking on) | Rely on `reasoning_effort: "none"` sent by the adapter |
 | `FileNotFoundError: scenarios/g07.json` | API started outside the repository root | Start it from the root, check `SCENARIO_ID=g07` |
 | Container API cannot reach LM Studio | LM Studio listens only on localhost | Enable "Serve on Local Network", keep the `host-gateway` entry, check the firewall |
 | `docker build` fails with `error reading from server: EOF`, then Docker Desktop cannot restart (`running mkfs: exit status 1`) | Docker VM log shows `python3.12` and `dockerd` killed by signal 7 (SIGBUS); `C:` had 1 GB free, so the WSL disk could not grow | Free at least 10–15 GB on `C:` and restart Docker Desktop |
