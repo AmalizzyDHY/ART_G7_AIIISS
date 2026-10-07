@@ -74,7 +74,7 @@ def _extract_json(content: str) -> dict:
         cleaned = cleaned.strip(chr(96)).removeprefix("json").strip()
     data = json.loads(cleaned)
     if not isinstance(data, dict):
-        raise ValueError("Model output is not a JSON object")
+        raise TypeError("Model output is not a JSON object")
     return data
 
 
@@ -91,6 +91,8 @@ class LocalAnalysisProvider:
             "messages": build_messages(request, policy),
             "temperature": 0,
             "max_tokens": self.max_tokens,
+            # Reasoning models (Qwen3.5) otherwise spend the whole token budget thinking.
+            "reasoning_effort": "none",
         }
         try:
             with httpx.Client(

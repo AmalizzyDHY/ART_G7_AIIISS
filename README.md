@@ -1,7 +1,302 @@
-# Working project starter
+# Access Request Triage
 
-This baseline already runs in mock mode. Copy this entire directory into your own repository; work from its root. Create and activate a Python virtual environment, run `python -m pip install -r requirements-dev.txt` and `python -m pip install --no-deps -e .`, then copy `.env.example` to `.env`. Run `python -m pytest`.
+Group 07 — Lisa and Rollin
 
-Start the API with `python -m uvicorn ticket_app.api:create_app --factory --host 127.0.0.1 --port 8000` and run `python -m streamlit run ui/app.py` in another terminal. Open http://localhost:8501 and http://localhost:8000/docs. The generic mock analyzes a request, stores the validated result and requires human review. The original I1 summary CLI is also preserved.
+## Objective and user stories
 
-Your assigned brief describes the extension tasks: scenario policy and prompt, local analysis adapter, feature tests, Jenkins pipeline, Dockerfile and local Terraform resources. The local adapter and delivery files are deliberately incomplete. Obtain your prepared Jenkins agent from the instructor. Use the assigned README template as your final README.
+An identity team receives free-text access requests and must sort them before a human reviews
+them. The application proposes a route (`account`, `role` or `resource`), a priority, a short
+summary and a next action. It never grants anything, never asks for or repeats credentials, and
+every stored result has `requires_review: true`.
+Assigned scope: route an access request without granting permissions or exposing credentials.
+Allowed categories: account, role, resource.
+
+| Story | Acceptance check |
+| --- | --- |
+| As a reviewer, I submit a request and get a proposed category and priority so I can send it to the right queue. | A valid request returns HTTP 200 with the four fields and `requires_review: true`; it appears in `/api/history`. |
+| As a security officer, I want the tool to refuse output that claims an access was granted. | A model answer such as "Access has been granted" returns HTTP 502 and is not stored (`test_contract_violation_is_rejected_and_not_saved`). |
+| As an operator, I want a clear error when the model is down, without polluting the history. | LM Studio stopped or too slow returns HTTP 503 and `/api/history` is unchanged (`test_inference_failure_is_controlled_and_not_saved`). |
+
+## Architecture
+
+```mermaid
+flowchart LR
+  UI[Streamlit UI<br/>ui/app.py] -- HTTP --> API[FastAPI api.py<br/>+ AnalysisService]
+  API -- AnalysisProvider --> P{LLM_PROVIDER}
+  P -- mock --> M[MockAnalysisProvider<br/>keywords from scenarios/g07.json]
+  P -- local --> L[LocalAnalysisProvider] -- /v1/chat/completions --> LM[LM Studio on the host :1234]
+  API -- validated records only --> DB[(SQLite /data/analyses.db)]
+```
+
+- **Streamlit UI** (`ui/app.py`): form with subject and request, shows category, priority,
+  summary, next action, the human-review banner and the recent history. It only calls the API.
+- **FastAPI** (`src/ticket_app/api.py`): `/api/analyze`, `/api/history`, `/health`. Validates
+  input with `Request` (422), maps `ProviderUnavailable` to 503 and `InvalidModelOutput` to 502,
+  saves the record only after success, logs only id, provider and duration.
+- **AnalysisService** (`analysis_service.py`): rejects a category outside the scenario and any
+  output that claims an action happened.
+- **Provider adapter** (`analysis_provider.py`): same interface for the mock (CI) and LM Studio
+  (local). See [ADR 0001](docs/adr/0001-analysis-provider-boundary.md).
+- **LM Studio** runs on the host machine; in Docker the API reaches it through
+  `host.docker.internal`.
+- **SQLite** lives in `./data` in development and in the `g07-data` volume once deployed.
+
+Where each process runs: in development, API (8000) and UI (8501) run on the laptop. When
+deployed, Terraform runs both as containers `g07-api` (127.0.0.1:8007) and `g07-ui`
+(127.0.0.1:8507). Jenkins runs on the lab agent `ai-lab` and never calls LM Studio. See
+[ADR 0002](docs/adr/0002-deployment-ownership.md).
+
+## Prerequisites
+
+| Tool | Version |
+| --- | --- |
+| Python | 3.12.1 (3.11+ required) |
+| Python dependencies | pinned in `requirements.txt` / `requirements-dev.txt` (pytest 9.1.1, ruff 0.16.10) |
+| LM Studio | 0.4.25 |
+| Docker | Docker Desktop 4.94.0, Engine 29.8.2, Linux containers on WSL 2 |
+| Terraform | 1.13.3 (`>= 1.13.0` required by `infra/versions.tf`), provider `kreuzwerker/docker` 4.0.0 |
+| Jenkins | job `g07-access-triage`, agent label `ai-lab` (credentials stay in Jenkins) |
+
+## Installation
+
+```bash
+python -m venv .venv
+# Activate .venv for your operating system.
+python -m pip install -r requirements-dev.txt
+python -m pip install --no-deps -e .
+# Copy .env.example to .env and fill local settings.
+```
+On PowerShell: `.venv\Scripts\Activate.ps1`; on macOS/Linux: `source .venv/bin/activate`.
+
+## LM Studio configuration
+
+- Model: `qwen3.5-2b` (file `Qwen3.5-2B-Q4_K_M.gguf`), context 4096 tokens. Load it before
+  use, from the UI or with `lms load qwen3.5-2b --context-length 4096`.
+- Server: `http://localhost:1234/v1`, "Serve on Local Network" enabled for containers.
+- `.env`: `LLM_PROVIDER=local`, `SCENARIO_ID=g07`, `LLM_MODEL=qwen3.5-2b`, `LLM_TIMEOUT=60`,
+  `LLM_MAX_TOKENS=300`. Restart the API after editing `.env`.
+- Parameters sent by the adapter: `temperature: 0`, `max_tokens` from `LLM_MAX_TOKENS`, and
+  `reasoning_effort: "none"`. Qwen3.5 is a reasoning model: without this parameter it spends the
+  whole token budget on hidden reasoning, returns an empty `content` and every request times out
+  (see `docs/model-evaluation.md`).
+Get the ID from `http://localhost:1234/v1/models` using your actual port.
+Use `LLM_PROVIDER=local` and `SCENARIO_ID=g07` in .env, then restart the API.
+
+Authentication is off in our LM Studio setup. If you enable it, put the key in a file outside the
+repository and set `LLM_API_KEY_FILE` (preferred) or `LLM_API_KEY`; the key is sent as a bearer
+header and is never logged or committed.
+
+Host-to-container connectivity: inside a container, `localhost` is the container itself. The
+deployed API uses `LLM_BASE_URL=http://host.docker.internal:1234/v1`, and Terraform adds
+`host.docker.internal → host-gateway` so this also works on Linux. A remote CI agent does not
+share your laptop's localhost, which is why CI always runs in mock mode.
+
+## Running the application
+
+```bash
+python -m uvicorn ticket_app.api:create_app --factory --host 127.0.0.1 --port 8000
+# In a second terminal:
+python -m streamlit run ui/app.py
+```
+Open localhost:8501 and localhost:8000/docs. Set mock mode before the first run.
+
+Input: `subject` (3–100 characters) and `text` (10–4000 characters); unknown fields are refused.
+Output record: `id`, `scenario`, `provider`, `requires_review` (always `true`) and `analysis` with
+`summary` (10–240), `category` (account, role or resource), `priority` (low, medium, high) and
+`next_action` (10–240). Extra fields in the model output are rejected.
+
+```bash
+curl -s -X POST localhost:8000/api/analyze -H 'Content-Type: application/json' \
+  -d '{"subject":"Account request","text":"Please create an account for a new hire starting Monday."}'
+```
+
+The summary CLI from the starter still works: `python -m ticket_app.cli --provider mock`.
+
+## Tests and local model evaluation
+
+```bash
+python -m pytest --junitxml=reports/pytest.xml
+```
+
+36 tests, all green with LM Studio stopped (`evidence/pytest-local.txt`). `conftest.py` forces
+mock mode so a local `.env` never reaches a model.
+
+| File | What it proves |
+| --- | --- |
+| `tests/test_baseline.py` | Starter health and 422 checks, unchanged |
+| `tests/test_g07_scenario.py` | Six supplied fixtures + one original + one adversarial case: category and priority in mock mode; a valid request is saved in history |
+| `tests/test_validation.py` | Input limits (422) and boundaries; output length, priority and extra field rejected |
+| `tests/test_local_adapter.py` | `httpx.MockTransport`: payload, bearer key, code fence, timeout, refused connection, malformed output |
+| `tests/test_api_failures.py` | 503 / 502 codes, unknown category, claimed action, timeout — and no history after a failure |
+
+Live evaluation: run the API in local mode, then `python scripts/evaluate_live.py`. Each run is
+appended to [docs/model-evaluation.md](docs/model-evaluation.md) with validity, category
+agreement, priority and latency. Tests never assert the exact wording of a live answer; a
+disagreement is reported, not hidden.
+
+| Run | Adapter | Valid | Category agreement | Latency |
+| --- | --- | --- | --- | --- |
+| 1 | reasoning on | 0/8 (all 503 timeouts) | 0/8 | ~65 s |
+| 2 and 3 | `reasoning_effort: "none"` | 8/8 | 7/8 | 19–36 s |
+
+The adversarial prompt injection was not obeyed (no password, no claimed action).
+
+## Git workflow
+
+Contributors: Lisa (branch `Lisa`) and Rollin (branch `Rollin`). Feature branches are merged into
+`main` through reviewed pull requests, with merge commits so the failure and fix commits stay
+visible. Details per student and PR links are in [CONTRIBUTIONS.md](CONTRIBUTIONS.md); assistant
+use is declared in [AI_USAGE.md](AI_USAGE.md).
+
+Commit messages follow `type(scope): description` (in French), one increment per commit.
+Meaningful commits on `Lisa`:
+
+| Commit | Increment |
+| --- | --- |
+| [`99a3954`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/99a3954) | Fix: `Record` imported from the installed package, `group.txt` as ASCII |
+| [`4217064`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/4217064) | UI: four fields, human review banner, clear errors, history |
+| [`1f775e0`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/1f775e0) | Fix: summary CLI imports from the installed package |
+| [`2cb5397`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/2cb5397) | Fix: `reasoning_effort: "none"` so Qwen3.5 answers within the token limit |
+| [`6e98b95`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/6e98b95) | Terraform provider lock file (Windows, Linux, macOS hashes) |
+| [`c2d4dc9`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/c2d4dc9) | Evidence: Terraform deployment in local mode connected to LM Studio |
+
+Pull requests (links to be added when opened): `Lisa` → `main`, then `demo/ci-failure` → `main`,
+both reviewed by the other student and merged with a merge commit.
+
+CI failure demonstration on branch `demo/ci-failure` (Jenkins links to be added):
+
+1. Commit `test: casser volontairement le routage resource pour démontrer l'échec de la CI`
+   removes `resource` and `repository` from the resource keywords. Locally it makes 3 scenario
+   tests fail (`Resource request 1`, `Resource request 2`, `Contractor repository access`);
+   on Jenkins the build must be red at **Test** and **Build image** must be skipped.
+2. A separate commit `fix: restaurer les mots-clés resource` restores them; the next build is green.
+
+## Jenkins pipeline
+
+Job `g07-access-triage`, type Pipeline from SCM, branch `*/main`, Script Path `Jenkinsfile`,
+agent `ai-lab`, trigger `pollSCM('H/2 * * * *')` (registered by the first manual build).
+
+1. **Checkout** of the commit.
+2. **Install**: venv, `requirements-dev.txt`, package in editable mode.
+3. **Test**: `pytest --junitxml=reports/pytest.xml`; JUnit is published in `post { always }`, so
+   it is visible even when a test fails.
+4. **Terraform validate**: `init -backend=false`, `fmt -check`, `validate`.
+5. **Build image**: tag `copilot-g07:<BUILD_NUMBER>`, read from `group.txt`, written to
+   `reports/image-tag.txt`.
+6. **Smoke test (mock)**: `scripts/container_smoke.py` starts the image and calls `/api/analyze`.
+
+A failed test stops the pipeline before **Build image**, so no image exists for a red commit and
+Terraform can only deploy a tested tag.
+
+Before the first Jenkins run, the Linux stages were rehearsed from a clean clone of `Lisa`: in a
+`python:3.12-slim` container, Install and Test passed (36 tests, `reports/pytest.xml` written,
+`group.txt` read as `g07`); in `hashicorp/terraform:1.13.3`, `init -backend=false`, `fmt -check`
+and `validate` passed without changing the lock file. The repository is private, so the job needs
+a GitHub credential stored in Jenkins. In the default lab, Jenkins and Terraform share the same
+Docker daemon. If the agent is remote, transfer the image with
+`docker save copilot-g07:<build> | gzip > copilot-g07.tar.gz` then `gunzip -c copilot-g07.tar.gz | docker load`.
+
+## Docker
+
+```bash
+docker build -t copilot-g07:manual .
+python scripts/container_smoke.py copilot-g07:manual
+```
+
+- Base `python:3.12-slim`, dependencies pinned in `requirements.txt`.
+- `.dockerignore` excludes `.git`, `.venv`, `.env`, databases, `tests/`, `reports/`, `docs/`,
+  `evidence/`, `infra/` and `secrets/`, so no secret or test reaches the image.
+- Runs as `appuser` (uid 10001); `/data` is owned by that user so SQLite can write.
+- Default command starts the API on `0.0.0.0:8000`. The UI uses the same image with
+  `python -m streamlit run ui/app.py --server.address=0.0.0.0 --server.port=8501`.
+
+## Terraform
+
+Create `infra/terraform.tfvars` from `infra/terraform.tfvars.example` with `group_id = "g07"`,
+the tag of the green Jenkins run in `image_name` (not a manual build) and the model id.
+On Windows add `docker_host = "npipe:////./pipe/docker_engine"` (check with
+`docker context inspect --format '{{.Endpoints.docker.Host}}'`); on Linux/macOS keep the default
+socket.
+```bash
+terraform -chdir=infra init
+terraform -chdir=infra fmt -check
+terraform -chdir=infra validate
+terraform -chdir=infra plan -out=deployment.tfplan
+terraform -chdir=infra apply deployment.tfplan
+terraform -chdir=infra output
+terraform -chdir=infra destroy
+```
+Expected local ports: API 8007, UI 8507. Stop the baseline UI before deployment.
+
+Terraform manages one image reference (`keep_locally = true`, so destroy keeps the CI image), the
+network `g07-net`, the volume `g07-data` mounted on `/data`, and the containers `g07-api` (network
+alias `api`) and `g07-ui` (`API_URL=http://api:8000`). After `apply`, a second
+`terraform -chdir=infra plan -detailed-exitcode` must report "No changes" with exit code 0.
+`destroy` removes the volume too, so the demonstration database is lost.
+
+Verified locally on Windows (Docker Desktop, `docker_host = "npipe:////./pipe/docker_engine"`) with
+the image `copilot-g07:manual` in mock mode, before Jenkins was available: plan and apply created
+5 resources, `/health` answered on 8007, the UI answered on 8507 and reached `http://api:8000`,
+the second plan returned "No changes" with exit code 0, and destroy left no `g07` container,
+volume or network while keeping the image. Logs are in `evidence/tf-*.txt` and
+`evidence/docker-ps.txt`. The final deployment must use the green Jenkins tag instead.
+
+The same image was then deployed with `llm_provider = "local"`: `g07-api` reached LM Studio
+through `host.docker.internal` (status 200), an account request returned a validated
+`account` analysis from `qwen3.5-2b` in 29 s, and the second plan again returned "No changes"
+with exit code 0 (`evidence/tf-plan-local.txt`, `evidence/tf-apply-local.txt`,
+`evidence/deploy-local-checks.txt`, `evidence/tf-plan-nochange-local.txt`).
+State, plans, .env and tokens stay out of Git. Commit .terraform.lock.hcl.
+
+## Reproduction evidence
+
+| Evidence | File | Status |
+| --- | --- | --- |
+| Test suite green without LM Studio | `evidence/pytest-local.txt` | done |
+| Image checks: smoke test, non-root user, writable `/data`, no `.env` | `evidence/docker-checks.txt` | done |
+| Live model evaluation (3 runs) | `docs/model-evaluation.md` | done |
+| Terraform cycle, mock mode | `evidence/tf-plan.txt`, `tf-apply.txt`, `tf-output.txt`, `docker-ps.txt`, `tf-plan-nochange.txt`, `tf-destroy.txt` | done |
+| Terraform cycle, local mode with LM Studio | `evidence/tf-plan-local.txt`, `tf-apply-local.txt`, `deploy-local-checks.txt`, `tf-plan-nochange-local.txt`, `tf-destroy-local.txt` | done |
+| Deployed UI: account request validated by the local model | `evidence/ui-account-result.png` | done |
+| Deployed UI: LM Studio stopped, controlled 503, nothing saved | `evidence/ui-lmstudio-stopped.png` | done |
+| Jenkins green and red builds | `evidence/jenkins-green.png`, `image-tag.txt`, `jenkins-failed.png`, `junit-failed.png`, `docker-images-after-failure.txt` | to do |
+| Terraform with the green Jenkins tag | `evidence/tf-*.txt` refreshed with `copilot-g07:<build>` | to do |
+| Clean clone by the second student | `evidence/clean-clone.txt` | to do |
+
+The second student reproduces the project from a clean clone using only this README and records
+the run in `evidence/clean-clone.txt`.
+
+## Troubleshooting
+
+| Symptom | Diagnosis | Resolution |
+| --- | --- | --- |
+| Every live request returns 503 after 60 s | `curl` to `/v1/chat/completions` shows empty `content` and `reasoning_tokens` equal to `max_tokens`: the model is thinking | Keep `reasoning_effort: "none"` in the payload or disable thinking in LM Studio |
+| `ModuleNotFoundError: src` inside the container | A module imported `src.ticket_app...` (IDE auto-import) | Import `ticket_app...`; the package is installed, `src/` is not on the path |
+| Jenkins image tag is garbage | `group.txt` saved as UTF-16 by PowerShell `echo` | Save it as plain ASCII `g07` |
+| First live request times out, later ones work | `lms ps` shows no loaded model, so the first request waits for the model to load | Load it before the demo: `lms load qwen3.5-2b --context-length 4096` |
+| Thinking disabled in the LM Studio chat, but API answers are still empty | That toggle applies to chat sessions; the API server uses the model default (thinking on) | Rely on `reasoning_effort: "none"` sent by the adapter |
+| `FileNotFoundError: scenarios/g07.json` | API started outside the repository root | Start it from the root, check `SCENARIO_ID=g07` |
+| Container API cannot reach LM Studio | LM Studio listens only on localhost | Enable "Serve on Local Network", keep the `host-gateway` entry, check the firewall |
+| `docker build` fails with `error reading from server: EOF`, then Docker Desktop cannot restart (`running mkfs: exit status 1`) | Docker VM log shows `python3.12` and `dockerd` killed by signal 7 (SIGBUS); `C:` had 1 GB free, so the WSL disk could not grow | Free at least 10–15 GB on `C:` and restart Docker Desktop |
+| Container fails with `invalid ELF header` or `exec format error` | Base image layers were extracted while the disk was full and are corrupted | `docker rmi python:3.12-slim`, `docker builder prune -af`, then `docker build --no-cache --pull` |
+| `Unsupported Terraform Core version` | Terraform older than 1.13 (1.9.5 was installed) | Install Terraform 1.13.3 |
+| Second plan shows changes | A Docker-computed attribute differs from the configuration | Read the attribute in the plan, set it in `main.tf`, plan again |
+
+## Limitations and improvements
+
+- The mock routes by keyword counts: it says nothing about model quality and would misroute a
+  request whose wording avoids the scenario keywords.
+- The live model (`qwen3.5-2b`, CPU only) takes 19–36 s per request. With reasoning disabled it
+  produced 8/8 valid outputs and 7/8 category agreement: it routed the adversarial "domain admin"
+  request to `account` instead of `role`, and gave `low` instead of `medium` to the three fixtures
+  that state no business need (`docs/model-evaluation.md`).
+- `localhost` differs between the host and containers; the deployed API depends on
+  `host.docker.internal` and on LM Studio listening on the network.
+- If the Jenkins agent is remote, the green image must be transferred with `docker save` /
+  `docker load` before deployment.
+- `destroy` deletes the SQLite volume.
+
+Prioritized improvement: clarify the priority rule and the meaning of admin rights in the
+scenario `instructions`, then rerun the evaluation and keep both measurements. The evidence is
+that all four remaining disagreements come from prompt interpretation, while no output was
+rejected by validation.

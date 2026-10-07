@@ -1,0 +1,11 @@
+docker_image.app: Refreshing state... [id=sha256:1221c6e78525430deb17ad959eae772e4a24139812f66b5a3e6cfd2cb2460966copilot-g07:manual]
+docker_volume.data: Refreshing state... [id=g07-data]
+docker_network.net: Refreshing state... [id=b011e0f8bc2e9c0d09a3ec7495728ba767f016613d24fc0284e193c97a0dd350]
+docker_container.api: Refreshing state... [id=199ae2b9aa7936862837bf92f460ca663026ab8c6f0f4fc37ce2ee1fff20a9b0]
+docker_container.ui: Refreshing state... [id=baa6e246866e7f64354d8d24d224ddf68b918056451435c78e9438a8afd8b565]
+
+No changes. Your infrastructure matches the configuration.
+
+Terraform has compared your real infrastructure against your configuration
+and found no differences, so no changes are needed.
+exit code: 0

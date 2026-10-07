@@ -1,0 +1,17 @@
+$ docker ps --filter name=g07
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                      NAMES
+b84986c6988b   1221c6e78525   "python -m streamlit…"   17 seconds ago   Up 16 seconds   127.0.0.1:8507->8501/tcp   g07-ui
+2ef5ebf56850   1221c6e78525   "python -m uvicorn t…"   18 seconds ago   Up 17 seconds   127.0.0.1:8007->8000/tcp   g07-api
+
+$ curl -s 127.0.0.1:8007/health
+{"status":"ok","scenario":"g07","provider":"local"}
+
+$ docker exec g07-api python -c "import urllib.request; print(urllib.request.urlopen('http://host.docker.internal:1234/v1/models').status)"
+200
+
+$ curl -s -X POST 127.0.0.1:8007/api/analyze ... (account request)
+{"id":"87975da4-e440-451c-a1cc-f7ee53c34bf7","scenario":"g07","provider":"local","analysis":{"summary":"Create a new user account for a new hire effective Monday.","category":"account","priority":"medium","next_action":"Propose creating the account with standard credentials and assign appropriate roles based on department."},"requires_review":true}
+elapsed: 29 s
+
+$ curl -s -o /dev/null -w "%{http_code}" 127.0.0.1:8507
+200

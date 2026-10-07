@@ -1,0 +1,7 @@
+api_url = "http://127.0.0.1:8007"
+containers = [
+  "g07-api",
+  "g07-ui",
+]
+image = "copilot-g07:manual"
+ui_url = "http://127.0.0.1:8507"

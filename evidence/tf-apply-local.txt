@@ -1,0 +1,23 @@
+docker_network.net: Creating...
+docker_volume.data: Creating...
+docker_image.app: Creating...
+docker_image.app: Creation complete after 0s [id=sha256:1221c6e78525430deb17ad959eae772e4a24139812f66b5a3e6cfd2cb2460966copilot-g07:manual]
+docker_volume.data: Creation complete after 10s [id=g07-data]
+docker_network.net: Still creating... [00m10s elapsed]
+docker_network.net: Creation complete after 11s [id=c1c10413f76b66ac618fc928d62d4299dddc2ca84094389939d7a913ae24a8c2]
+docker_container.api: Creating...
+docker_container.api: Creation complete after 0s [id=2ef5ebf56850068b0f79d7247355187fe0a1a6219d6d005e56b7d6ce60e5c10c]
+docker_container.ui: Creating...
+docker_container.ui: Creation complete after 2s [id=b84986c6988bafc1a961a33f82a626390e65c91ea8d6294a5d45cd3fa04b49d5]
+
+Apply complete! Resources: 5 added, 0 changed, 0 destroyed.
+
+Outputs:
+
+api_url = "http://127.0.0.1:8007"
+containers = [
+  "g07-api",
+  "g07-ui",
+]
+image = "copilot-g07:manual"
+ui_url = "http://127.0.0.1:8507"

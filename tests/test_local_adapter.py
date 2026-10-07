@@ -51,6 +51,7 @@ def test_request_payload_and_parser(policy):
     assert body["model"] == "test-model"
     assert body["temperature"] == 0
     assert body["max_tokens"] == 300
+    assert body["reasoning_effort"] == "none"
     assert json.loads(body["messages"][-1]["content"]) == {
         "subject": "Repo access",
         "text": "Read access to the docs repository please",

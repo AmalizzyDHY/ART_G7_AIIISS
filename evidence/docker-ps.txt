@@ -1,0 +1,3 @@
+CONTAINER ID   IMAGE          COMMAND                  CREATED          STATUS          PORTS                      NAMES
+baa6e246866e   1221c6e78525   "python -m streamlit…"   34 seconds ago   Up 34 seconds   127.0.0.1:8507->8501/tcp   g07-ui
+199ae2b9aa79   1221c6e78525   "python -m uvicorn t…"   35 seconds ago   Up 34 seconds   127.0.0.1:8007->8000/tcp   g07-api
