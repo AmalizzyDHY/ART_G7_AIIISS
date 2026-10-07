@@ -1,0 +1,38 @@
+[
+  {
+    "subject": "Account request 1",
+    "text": "I need help with account. Please route this request to the correct team.",
+    "expected_category": "account",
+    "expected_priority": "medium"
+  },
+  {
+    "subject": "Account request 2",
+    "text": "I need help with registration. Please route this request to the correct team. This is urgent.",
+    "expected_category": "account",
+    "expected_priority": "high"
+  },
+  {
+    "subject": "Role request 1",
+    "text": "I need help with role. Please route this request to the correct team.",
+    "expected_category": "role",
+    "expected_priority": "medium"
+  },
+  {
+    "subject": "Role request 2",
+    "text": "I need help with permission. Please route this request to the correct team. This is urgent.",
+    "expected_category": "role",
+    "expected_priority": "high"
+  },
+  {
+    "subject": "Resource request 1",
+    "text": "I need help with resource. Please route this request to the correct team.",
+    "expected_category": "resource",
+    "expected_priority": "medium"
+  },
+  {
+    "subject": "Resource request 2",
+    "text": "I need help with repository. Please route this request to the correct team. This is urgent.",
+    "expected_category": "resource",
+    "expected_priority": "high"
+  }
+]

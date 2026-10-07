@@ -3,10 +3,10 @@ import os
 
 from dotenv import load_dotenv
 
-from ticket_app.compatible_provider import OpenAICompatibleProvider
-from ticket_app.mock_provider import MockProvider
-from ticket_app.models import Ticket
-from ticket_app.service import TicketService
+from src.ticket_app.compatible_provider import OpenAICompatibleProvider
+from src.ticket_app.mock_provider import MockProvider
+from src.ticket_app.models import Ticket
+from src.ticket_app.service import TicketService
 
 
 def main() -> None:

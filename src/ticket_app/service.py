@@ -1,5 +1,5 @@
-from ticket_app.models import Ticket
-from ticket_app.provider import SummaryProvider
+from src.ticket_app.models import Ticket
+from src.ticket_app.provider import SummaryProvider
 
 
 class TicketService:

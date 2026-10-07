@@ -1,0 +1,4 @@
+group_id     = "g07"
+image_name   = "copilot-g07:<green build number>"
+llm_provider = "mock"
+llm_model    = "<model id from /v1/models>"

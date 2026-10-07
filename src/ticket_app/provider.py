@@ -1,6 +1,6 @@
 from typing import Protocol
 
-from ticket_app.models import Ticket
+from src.ticket_app.models import Ticket
 
 
 class SummaryProvider(Protocol):
