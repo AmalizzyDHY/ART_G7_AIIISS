@@ -91,6 +91,8 @@ class LocalAnalysisProvider:
             "messages": build_messages(request, policy),
             "temperature": 0,
             "max_tokens": self.max_tokens,
+            # Reasoning models (Qwen3.5) otherwise spend the whole token budget thinking.
+            "reasoning_effort": "none",
         }
         try:
             with httpx.Client(
