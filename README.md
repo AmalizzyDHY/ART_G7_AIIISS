@@ -214,6 +214,12 @@ the image `copilot-g07:manual` in mock mode, before Jenkins was available: plan 
 the second plan returned "No changes" with exit code 0, and destroy left no `g07` container,
 volume or network while keeping the image. Logs are in `evidence/tf-*.txt` and
 `evidence/docker-ps.txt`. The final deployment must use the green Jenkins tag instead.
+
+The same image was then deployed with `llm_provider = "local"`: `g07-api` reached LM Studio
+through `host.docker.internal` (status 200), an account request returned a validated
+`account` analysis from `qwen3.5-2b` in 29 s, and the second plan again returned "No changes"
+with exit code 0 (`evidence/tf-plan-local.txt`, `evidence/tf-apply-local.txt`,
+`evidence/deploy-local-checks.txt`, `evidence/tf-plan-nochange-local.txt`).
 State, plans, .env and tokens stay out of Git. Commit .terraform.lock.hcl.
 
 ## Reproduction evidence
