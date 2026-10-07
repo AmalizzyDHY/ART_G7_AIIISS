@@ -163,18 +163,29 @@ Meaningful commits on `Lisa`:
 Pull requests (links to be added when opened): `Lisa` → `main`, then `demo/ci-failure` → `main`,
 both reviewed by the other student and merged with a merge commit.
 
-CI failure demonstration on branch `demo/ci-failure` (Jenkins links to be added):
+Failure and fix demonstration on branch `demo/ci-failure`, kept as separate commits:
 
-1. Commit `test: casser volontairement le routage resource pour démontrer l'échec de la CI`
-   removes `resource` and `repository` from the resource keywords. Locally it makes 3 scenario
-   tests fail (`Resource request 1`, `Resource request 2`, `Contractor repository access`);
-   on Jenkins the build must be red at **Test** and **Build image** must be skipped.
-2. A separate commit `fix: restaurer les mots-clés resource` restores them; the next build is green.
+1. [`4976757`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/4976757)
+   `test: casser volontairement le routage resource pour démontrer l'échec de la CI` removes
+   `resource` and `repository` from the resource keywords. The pipeline test command fails with
+   exit code 1 and 3 failing scenario tests (`Resource request 1`, `Resource request 2`,
+   `Contractor repository access`): `evidence/pytest-failed-demo.txt`.
+2. [`6c85804`](https://github.com/AmalizzyDHY/ART_G7_AIIISS/commit/6c85804)
+   `fix: restaurer les mots-clés resource` restores them; the same command passes again
+   (36 tests, exit code 0): `evidence/pytest-fixed-demo.txt`.
+
+This evidence comes from running the pipeline's test command locally, **not from Jenkins** (see
+the next section).
 
 ## Jenkins pipeline
 
-Job `g07-access-triage`, type Pipeline from SCM, branch `*/main`, Script Path `Jenkinsfile`,
-agent `ai-lab`, trigger `pollSCM('H/2 * * * *')` (registered by the first manual build).
+**Status: the Jenkinsfile is complete, but the job was not created on the lab Jenkins for lack of
+time.** We therefore have no Jenkins build, no build-number image tag and no CI screenshots. What
+was verified instead is listed below; the image deployed by Terraform is a manual build
+(`copilot-g07:manual`) that passed the same smoke test.
+
+Intended job: `g07-access-triage`, type Pipeline from SCM, branch `*/main`, Script Path
+`Jenkinsfile`, agent `ai-lab`, trigger `pollSCM('H/2 * * * *')` (registered by the first manual build).
 
 1. **Checkout** of the commit.
 2. **Install**: venv, `requirements-dev.txt`, package in editable mode.
@@ -188,7 +199,7 @@ agent `ai-lab`, trigger `pollSCM('H/2 * * * *')` (registered by the first manual
 A failed test stops the pipeline before **Build image**, so no image exists for a red commit and
 Terraform can only deploy a tested tag.
 
-Before the first Jenkins run, the Linux stages were rehearsed from a clean clone of `Lisa`: in a
+Instead of a Jenkins run, the Linux stages were rehearsed from a clean clone of `Lisa`: in a
 `python:3.12-slim` container, Install and Test passed (36 tests, `reports/pytest.xml` written,
 `group.txt` read as `g07`); in `hashicorp/terraform:1.13.3`, `init -backend=false`, `fmt -check`
 and `validate` passed without changing the lock file. The repository is private, so the job needs
@@ -239,7 +250,8 @@ the image `copilot-g07:manual` in mock mode, before Jenkins was available: plan 
 5 resources, `/health` answered on 8007, the UI answered on 8507 and reached `http://api:8000`,
 the second plan returned "No changes" with exit code 0, and destroy left no `g07` container,
 volume or network while keeping the image. Logs are in `evidence/tf-*.txt` and
-`evidence/docker-ps.txt`. The final deployment must use the green Jenkins tag instead.
+`evidence/docker-ps.txt`. With Jenkins in place, `image_name` must be the green build tag;
+since no Jenkins build exists, both deployments used `copilot-g07:manual`.
 
 The same image was then deployed with `llm_provider = "local"`: `g07-api` reached LM Studio
 through `host.docker.internal` (status 200), an account request returned a validated
@@ -259,8 +271,9 @@ State, plans, .env and tokens stay out of Git. Commit .terraform.lock.hcl.
 | Terraform cycle, local mode with LM Studio | `evidence/tf-plan-local.txt`, `tf-apply-local.txt`, `deploy-local-checks.txt`, `tf-plan-nochange-local.txt`, `tf-destroy-local.txt` | done |
 | Deployed UI: account request validated by the local model | `evidence/ui-account-result.png` | done |
 | Deployed UI: LM Studio stopped, controlled 503, nothing saved | `evidence/ui-lmstudio-stopped.png` | done |
-| Jenkins green and red builds | `evidence/jenkins-green.png`, `image-tag.txt`, `jenkins-failed.png`, `junit-failed.png`, `docker-images-after-failure.txt` | to do |
-| Terraform with the green Jenkins tag | `evidence/tf-*.txt` refreshed with `copilot-g07:<build>` | to do |
+| Failure then fix, separate commits, pipeline test command run locally | `evidence/pytest-failed-demo.txt`, `evidence/pytest-fixed-demo.txt` | done |
+| Jenkins green and red builds | `evidence/jenkins-green.png`, `image-tag.txt`, `jenkins-failed.png`, `junit-failed.png`, `docker-images-after-failure.txt` | not done (no time) |
+| Terraform with the green Jenkins tag | `evidence/tf-*.txt` refreshed with `copilot-g07:<build>` | not done (no Jenkins build) |
 | Clean clone by the second student | `evidence/clean-clone.txt` | to do |
 
 The second student reproduces the project from a clean clone using only this README and records
@@ -295,6 +308,8 @@ the run in `evidence/clean-clone.txt`.
 - If the Jenkins agent is remote, the green image must be transferred with `docker save` /
   `docker load` before deployment.
 - `destroy` deletes the SQLite volume.
+- Jenkins was not run: the pipeline is only rehearsed locally, so automatic triggering, the
+  published JUnit report and the build-number image tag are not proven.
 
 Prioritized improvement: clarify the priority rule and the meaning of admin rights in the
 scenario `instructions`, then rerun the evaluation and keep both measurements. The evidence is

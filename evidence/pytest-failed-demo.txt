@@ -1,0 +1,110 @@
+$ git log -1 --format='%h %s'
+4976757 test: casser volontairement le routage resource pour démontrer l'échec de la CI
+
+$ python -m pytest --junitxml=reports/pytest.xml
+============================= test session starts =============================
+platform win32 -- Python 3.12.1, pytest-9.1.1, pluggy-1.6.0
+rootdir: <repo>
+configfile: pyproject.toml
+testpaths: tests
+plugins: anyio-4.15.1
+collected 36 items
+
+tests\test_api_failures.py .....                                         [ 13%]
+tests\test_baseline.py ..                                                [ 19%]
+tests\test_g07_scenario.py .....FFF..                                    [ 47%]
+tests\test_local_adapter.py ........                                     [ 69%]
+tests\test_validation.py ...........                                     [100%]
+
+================================== FAILURES ===================================
+______________ test_mock_routes_each_example[Resource request 1] ______________
+
+make_client = <function make_client.<locals>._make at 0x0000022FB92602C0>
+case = {'subject': 'Resource request 1', 'text': 'I need help with resource. Please route this request to the correct team.', 'expected_category': 'resource', 'expected_priority': 'medium'}
+
+    @pytest.mark.parametrize("case", SUPPLIED + EXTRA, ids=lambda case: case["subject"])
+    def test_mock_routes_each_example(make_client, case):
+        response = make_client().post(
+            "/api/analyze", json={"subject": case["subject"], "text": case["text"]}
+        )
+        assert response.status_code == 200
+        record = response.json()
+        assert record["requires_review"] is True
+>       assert record["analysis"]["category"] == case["expected_category"]
+E       AssertionError: assert 'account' == 'resource'
+E         
+E         - resource
+E         + account
+
+tests\test_g07_scenario.py:26: AssertionError
+---------------------------- Captured stderr call -----------------------------
+{"event": "analysis_completed", "id": "425ea8a0-cfdd-4671-8847-de0880fbd622", "provider": "mock", "elapsed_ms": 5}
+HTTP Request: POST http://testserver/api/analyze "HTTP/1.1 200 OK"
+------------------------------ Captured log call ------------------------------
+INFO     ticket_app:api.py:69 {"event": "analysis_completed", "id": "425ea8a0-cfdd-4671-8847-de0880fbd622", "provider": "mock", "elapsed_ms": 5}
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/analyze "HTTP/1.1 200 OK"
+______________ test_mock_routes_each_example[Resource request 2] ______________
+
+make_client = <function make_client.<locals>._make at 0x0000022FB92DFC40>
+case = {'subject': 'Resource request 2', 'text': 'I need help with repository. Please route this request to the correct team. This is urgent.', 'expected_category': 'resource', 'expected_priority': 'high'}
+
+    @pytest.mark.parametrize("case", SUPPLIED + EXTRA, ids=lambda case: case["subject"])
+    def test_mock_routes_each_example(make_client, case):
+        response = make_client().post(
+            "/api/analyze", json={"subject": case["subject"], "text": case["text"]}
+        )
+        assert response.status_code == 200
+        record = response.json()
+        assert record["requires_review"] is True
+>       assert record["analysis"]["category"] == case["expected_category"]
+E       AssertionError: assert 'account' == 'resource'
+E         
+E         - resource
+E         + account
+
+tests\test_g07_scenario.py:26: AssertionError
+---------------------------- Captured stderr call -----------------------------
+{"event": "analysis_completed", "id": "bce55fc7-5a2d-4a2c-b3db-f3ea993f08ca", "provider": "mock", "elapsed_ms": 5}
+HTTP Request: POST http://testserver/api/analyze "HTTP/1.1 200 OK"
+------------------------------ Captured log call ------------------------------
+INFO     ticket_app:api.py:69 {"event": "analysis_completed", "id": "bce55fc7-5a2d-4a2c-b3db-f3ea993f08ca", "provider": "mock", "elapsed_ms": 5}
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/analyze "HTTP/1.1 200 OK"
+_________ test_mock_routes_each_example[Contractor repository access] _________
+
+make_client = <function make_client.<locals>._make at 0x0000022FB92DFF60>
+case = {'subject': 'Contractor repository access', 'text': 'A contractor needs read access to the finance-reports repository until the end of the quarter.', 'expected_category': 'resource', 'expected_priority': 'medium'}
+
+    @pytest.mark.parametrize("case", SUPPLIED + EXTRA, ids=lambda case: case["subject"])
+    def test_mock_routes_each_example(make_client, case):
+        response = make_client().post(
+            "/api/analyze", json={"subject": case["subject"], "text": case["text"]}
+        )
+        assert response.status_code == 200
+        record = response.json()
+        assert record["requires_review"] is True
+>       assert record["analysis"]["category"] == case["expected_category"]
+E       AssertionError: assert 'account' == 'resource'
+E         
+E         - resource
+E         + account
+
+tests\test_g07_scenario.py:26: AssertionError
+---------------------------- Captured stderr call -----------------------------
+{"event": "analysis_completed", "id": "724dafed-ee3a-408d-ae1c-b19b087dba56", "provider": "mock", "elapsed_ms": 5}
+HTTP Request: POST http://testserver/api/analyze "HTTP/1.1 200 OK"
+------------------------------ Captured log call ------------------------------
+INFO     ticket_app:api.py:69 {"event": "analysis_completed", "id": "724dafed-ee3a-408d-ae1c-b19b087dba56", "provider": "mock", "elapsed_ms": 5}
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/analyze "HTTP/1.1 200 OK"
+============================== warnings summary ===============================
+.venv\Lib\site-packages\fastapi\testclient.py:1
+  <repo>\.venv\Lib\site-packages\fastapi\testclient.py:1: StarletteDeprecationWarning: Using `httpx` with `starlette.testclient` is deprecated; install `httpx2` instead.
+    from starlette.testclient import TestClient as TestClient  # noqa
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: <repo>\reports\pytest.xml -
+=========================== short test summary info ===========================
+FAILED tests/test_g07_scenario.py::test_mock_routes_each_example[Resource request 1]
+FAILED tests/test_g07_scenario.py::test_mock_routes_each_example[Resource request 2]
+FAILED tests/test_g07_scenario.py::test_mock_routes_each_example[Contractor repository access]
+=================== 3 failed, 33 passed, 1 warning in 0.93s ===================
+exit code: 1
