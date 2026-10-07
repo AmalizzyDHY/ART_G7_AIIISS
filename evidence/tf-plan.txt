@@ -1,0 +1,209 @@
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  + create
+
+Terraform will perform the following actions:
+
+  # docker_container.api will be created
+  + resource "docker_container" "api" {
+      + attach                                      = false
+      + bridge                                      = (known after apply)
+      + command                                     = [
+          + "python",
+          + "-m",
+          + "uvicorn",
+          + "ticket_app.api:create_app",
+          + "--factory",
+          + "--host",
+          + "0.0.0.0",
+          + "--port",
+          + "8000",
+        ]
+      + container_logs                              = (known after apply)
+      + container_read_refresh_timeout_milliseconds = 15000
+      + entrypoint                                  = (known after apply)
+      + env                                         = [
+          + "DB_PATH=/data/analyses.db",
+          + "LLM_BASE_URL=http://host.docker.internal:1234/v1",
+          + "LLM_MAX_TOKENS=300",
+          + "LLM_MODEL=qwen3.5-2b",
+          + "LLM_PROVIDER=mock",
+          + "LLM_TIMEOUT=60",
+          + "SCENARIO_ID=g07",
+        ]
+      + exit_code                                   = (known after apply)
+      + hostname                                    = (known after apply)
+      + id                                          = (known after apply)
+      + image                                       = (known after apply)
+      + init                                        = (known after apply)
+      + ipc_mode                                    = (known after apply)
+      + log_driver                                  = (known after apply)
+      + logs                                        = false
+      + memory_reservation                          = 0
+      + must_run                                    = true
+      + name                                        = "g07-api"
+      + network_data                                = (known after apply)
+      + network_mode                                = "bridge"
+      + read_only                                   = false
+      + remove_volumes                              = true
+      + restart                                     = "unless-stopped"
+      + rm                                          = false
+      + runtime                                     = (known after apply)
+      + security_opts                               = (known after apply)
+      + shm_size                                    = (known after apply)
+      + start                                       = true
+      + stdin_open                                  = false
+      + stop_signal                                 = (known after apply)
+      + stop_timeout                                = (known after apply)
+      + tty                                         = false
+      + wait                                        = false
+      + wait_timeout                                = 60
+
+      + healthcheck (known after apply)
+
+      + host {
+          + host = "host.docker.internal"
+          + ip   = "host-gateway"
+        }
+
+      + labels (known after apply)
+
+      + networks_advanced {
+          + aliases        = [
+              + "api",
+            ]
+          + driver_opts    = []
+          + link_local_ips = []
+          + name           = "g07-net"
+            # (3 unchanged attributes hidden)
+        }
+
+      + ports {
+          + external = 8007
+          + internal = 8000
+          + ip       = "127.0.0.1"
+          + protocol = "tcp"
+        }
+
+      + volumes {
+          + container_path  = "/data"
+          + volume_name     = "g07-data"
+            # (3 unchanged attributes hidden)
+        }
+    }
+
+  # docker_container.ui will be created
+  + resource "docker_container" "ui" {
+      + attach                                      = false
+      + bridge                                      = (known after apply)
+      + command                                     = [
+          + "python",
+          + "-m",
+          + "streamlit",
+          + "run",
+          + "ui/app.py",
+          + "--server.address=0.0.0.0",
+          + "--server.port=8501",
+        ]
+      + container_logs                              = (known after apply)
+      + container_read_refresh_timeout_milliseconds = 15000
+      + entrypoint                                  = (known after apply)
+      + env                                         = [
+          + "API_URL=http://api:8000",
+        ]
+      + exit_code                                   = (known after apply)
+      + hostname                                    = (known after apply)
+      + id                                          = (known after apply)
+      + image                                       = (known after apply)
+      + init                                        = (known after apply)
+      + ipc_mode                                    = (known after apply)
+      + log_driver                                  = (known after apply)
+      + logs                                        = false
+      + memory_reservation                          = 0
+      + must_run                                    = true
+      + name                                        = "g07-ui"
+      + network_data                                = (known after apply)
+      + network_mode                                = "bridge"
+      + read_only                                   = false
+      + remove_volumes                              = true
+      + restart                                     = "unless-stopped"
+      + rm                                          = false
+      + runtime                                     = (known after apply)
+      + security_opts                               = (known after apply)
+      + shm_size                                    = (known after apply)
+      + start                                       = true
+      + stdin_open                                  = false
+      + stop_signal                                 = (known after apply)
+      + stop_timeout                                = (known after apply)
+      + tty                                         = false
+      + wait                                        = false
+      + wait_timeout                                = 60
+
+      + healthcheck (known after apply)
+
+      + labels (known after apply)
+
+      + networks_advanced {
+          + aliases        = []
+          + driver_opts    = []
+          + link_local_ips = []
+          + name           = "g07-net"
+            # (3 unchanged attributes hidden)
+        }
+
+      + ports {
+          + external = 8507
+          + internal = 8501
+          + ip       = "127.0.0.1"
+          + protocol = "tcp"
+        }
+    }
+
+  # docker_image.app will be created
+  + resource "docker_image" "app" {
+      + id           = (known after apply)
+      + image_id     = (known after apply)
+      + keep_locally = true
+      + name         = "copilot-g07:manual"
+      + repo_digest  = (known after apply)
+    }
+
+  # docker_network.net will be created
+  + resource "docker_network" "net" {
+      + driver      = (known after apply)
+      + id          = (known after apply)
+      + internal    = (known after apply)
+      + ipam_driver = "default"
+      + name        = "g07-net"
+      + options     = (known after apply)
+      + scope       = (known after apply)
+
+      + ipam_config (known after apply)
+    }
+
+  # docker_volume.data will be created
+  + resource "docker_volume" "data" {
+      + driver     = (known after apply)
+      + id         = (known after apply)
+      + mountpoint = (known after apply)
+      + name       = "g07-data"
+    }
+
+Plan: 5 to add, 0 to change, 0 to destroy.
+
+Changes to Outputs:
+  + api_url    = "http://127.0.0.1:8007"
+  + containers = [
+      + "g07-api",
+      + "g07-ui",
+    ]
+  + image      = "copilot-g07:manual"
+  + ui_url     = "http://127.0.0.1:8507"
+
+─────────────────────────────────────────────────────────────────────────────
+
+Saved the plan to: deployment.tfplan
+
+To perform exactly these actions, run the following command to apply:
+    terraform apply "deployment.tfplan"

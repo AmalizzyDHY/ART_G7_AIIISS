@@ -1,0 +1,39 @@
+$ docker images copilot-g07
+IMAGE                ID             DISK USAGE   CONTENT SIZE   EXTRA
+copilot-g07:manual   1221c6e78525        788MB          181MB        
+
+$ python scripts/container_smoke.py copilot-g07:manual
+fa08ee8d2db58e6dd28aa51b3fd84c4faf13da6d70e60aa33a4f2b7d13efe1cd
+398c40af-9db2-416b-bbbf-73e8c0ed87a6
+exit code: 0
+
+$ docker run --rm copilot-g07:manual whoami
+appuser
+
+$ docker run --rm copilot-g07:manual ls -a /app
+.
+..
+build
+pyproject.toml
+requirements.txt
+scenarios
+src
+ui
+
+$ docker run --rm copilot-g07:manual sh -c 'ls -ld /data && touch /data/x && echo writable'
+drwxr-xr-x 2 appuser appuser 4096 Oct  7 20:04 /data
+writable
+
+$ docker run --rm copilot-g07:manual sh -c 'ls -a /app/src /app/scenarios; test -e /app/.env || echo no .env'
+/app/scenarios:
+.
+..
+g00.json
+g07.json
+
+/app/src:
+.
+..
+support_ticket_copilot_devops.egg-info
+ticket_app
+no .env

@@ -53,8 +53,8 @@ deployed, Terraform runs both as containers `g07-api` (127.0.0.1:8007) and `g07-
 | Python | 3.12.1 (3.11+ required) |
 | Python dependencies | pinned in `requirements.txt` / `requirements-dev.txt` (pytest 9.1.1, ruff 0.16.10) |
 | LM Studio | 0.4.25 |
-| Docker | Docker Engine with Linux containers (Docker Desktop on Windows) |
-| Terraform | 1.13.3, provider `kreuzwerker/docker` 4.0.0 |
+| Docker | Docker Desktop 4.94.0, Engine 29.8.2, Linux containers on WSL 2 |
+| Terraform | 1.13.3 (`>= 1.13.0` required by `infra/versions.tf`), provider `kreuzwerker/docker` 4.0.0 |
 | Jenkins | job `g07-access-triage`, agent label `ai-lab` (credentials stay in Jenkins) |
 
 ## Installation
@@ -207,6 +207,13 @@ network `g07-net`, the volume `g07-data` mounted on `/data`, and the containers 
 alias `api`) and `g07-ui` (`API_URL=http://api:8000`). After `apply`, a second
 `terraform -chdir=infra plan -detailed-exitcode` must report "No changes" with exit code 0.
 `destroy` removes the volume too, so the demonstration database is lost.
+
+Verified locally on Windows (Docker Desktop, `docker_host = "npipe:////./pipe/docker_engine"`) with
+the image `copilot-g07:manual` in mock mode, before Jenkins was available: plan and apply created
+5 resources, `/health` answered on 8007, the UI answered on 8507 and reached `http://api:8000`,
+the second plan returned "No changes" with exit code 0, and destroy left no `g07` container,
+volume or network while keeping the image. Logs are in `evidence/tf-*.txt` and
+`evidence/docker-ps.txt`. The final deployment must use the green Jenkins tag instead.
 State, plans, .env and tokens stay out of Git. Commit .terraform.lock.hcl.
 
 ## Reproduction evidence
@@ -214,6 +221,7 @@ State, plans, .env and tokens stay out of Git. Commit .terraform.lock.hcl.
 | Evidence | File |
 | --- | --- |
 | Test suite green without LM Studio | `evidence/pytest-local.txt` |
+| Image checks: smoke test, non-root user, writable `/data`, no `.env` | `evidence/docker-checks.txt` |
 | Live model evaluation | `docs/model-evaluation.md` |
 | UI success / LM Studio stopped | `evidence/ui-local-success.png`, `evidence/ui-lmstudio-stopped.png` |
 | Jenkins green and red builds | `evidence/jenkins-green.png`, `evidence/image-tag.txt`, `evidence/jenkins-failed.png`, `evidence/junit-failed.png`, `evidence/docker-images-after-failure.txt` |
@@ -232,6 +240,9 @@ the run in `evidence/clean-clone.txt`.
 | Jenkins image tag is garbage | `group.txt` saved as UTF-16 by PowerShell `echo` | Save it as plain ASCII `g07` |
 | `FileNotFoundError: scenarios/g07.json` | API started outside the repository root | Start it from the root, check `SCENARIO_ID=g07` |
 | Container API cannot reach LM Studio | LM Studio listens only on localhost | Enable "Serve on Local Network", keep the `host-gateway` entry, check the firewall |
+| `docker build` fails with `error reading from server: EOF`, then Docker Desktop cannot restart (`running mkfs: exit status 1`) | Docker VM log shows `python3.12` and `dockerd` killed by signal 7 (SIGBUS); `C:` had 1 GB free, so the WSL disk could not grow | Free at least 10–15 GB on `C:` and restart Docker Desktop |
+| Container fails with `invalid ELF header` or `exec format error` | Base image layers were extracted while the disk was full and are corrupted | `docker rmi python:3.12-slim`, `docker builder prune -af`, then `docker build --no-cache --pull` |
+| `Unsupported Terraform Core version` | Terraform older than 1.13 (1.9.5 was installed) | Install Terraform 1.13.3 |
 | Second plan shows changes | A Docker-computed attribute differs from the configuration | Read the attribute in the plan, set it in `main.tf`, plan again |
 
 ## Limitations and improvements
