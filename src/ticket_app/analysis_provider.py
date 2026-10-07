@@ -74,7 +74,7 @@ def _extract_json(content: str) -> dict:
         cleaned = cleaned.strip(chr(96)).removeprefix("json").strip()
     data = json.loads(cleaned)
     if not isinstance(data, dict):
-        raise ValueError("Model output is not a JSON object")
+        raise TypeError("Model output is not a JSON object")
     return data
 
 

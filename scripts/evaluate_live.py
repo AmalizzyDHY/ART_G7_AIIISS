@@ -50,7 +50,7 @@ for case in cases:
 valid = sum(row[5] for row in rows)
 agree = sum(row[6] for row in rows)
 lines = [
-    f"\n## Run {datetime.now():%Y-%m-%d %H:%M} · model {os.getenv('LLM_MODEL', '?')}\n",
+    f"\n## Run {datetime.now().astimezone():%Y-%m-%d %H:%M} · model {os.getenv('LLM_MODEL', '?')}\n",
     "| Case | Expected | Got | Expected priority | Got priority | Valid | Agrees | Latency (ms) | Error |",
     "|---|---|---|---|---|---|---|---|---|",
 ]

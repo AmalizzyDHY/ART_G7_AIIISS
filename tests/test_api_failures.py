@@ -2,7 +2,11 @@ import httpx
 import pytest
 
 from ticket_app.analysis_models import Analysis
-from ticket_app.analysis_provider import InvalidModelOutput, LocalAnalysisProvider, ProviderUnavailable
+from ticket_app.analysis_provider import (
+    InvalidModelOutput,
+    LocalAnalysisProvider,
+    ProviderUnavailable,
+)
 
 REQ = {"subject": "Role change", "text": "Please add me to the reporting role."}
 GOOD = {
